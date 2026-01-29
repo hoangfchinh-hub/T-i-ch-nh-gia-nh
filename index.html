@@ -8,48 +8,56 @@
 
 <style>
 :root{
- --primary:#2ecc71;
- --bg:#f2f4f7;
- --card:#fff;
- --text:#333;
+  --primary:#2ecc71;
+  --bg:#f1f3f6;
+  --card:#fff;
+  --text:#333;
 }
 body{
- font-family:-apple-system,BlinkMacSystemFont,sans-serif;
- background:var(--bg);
- margin:0;
- padding:12px;
- color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);
+  margin:0;
+  padding:12px;
+  color:var(--text);
 }
-h1{text-align:center}
+h1{text-align:center;margin-bottom:10px}
 .card{
- background:var(--card);
- border-radius:18px;
- padding:16px;
- margin-bottom:14px;
- box-shadow:0 6px 16px rgba(0,0,0,.08);
+  background:var(--card);
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
-input,select,button{
- width:100%;
- padding:12px;
- margin-top:6px;
- border-radius:12px;
- border:1px solid #ddd;
+button,input,select{
+  width:100%;
+  padding:12px;
+  margin-top:6px;
+  border-radius:12px;
+  border:1px solid #ddd;
 }
 button{
- background:var(--primary);
- color:#fff;
- border:none;
- font-weight:600;
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  font-weight:600;
 }
+.row{display:flex;gap:8px}
+.row>*{flex:1}
 .item{display:flex;justify-content:space-between;margin-top:6px}
 .small{font-size:13px;color:#777}
-.warn{color:#e67e22;font-weight:600}
 .good{color:#27ae60;font-weight:600}
+.warn{color:#e67e22;font-weight:600}
+.bad{color:#c0392b;font-weight:600}
 .progress{
- background:#eee;border-radius:10px;height:10px;margin-top:4px
+  background:#eee;
+  border-radius:10px;
+  overflow:hidden;
+  height:10px;
+  margin-top:6px;
 }
 .progress div{
- height:100%;background:var(--primary)
+  height:100%;
+  background:var(--primary);
 }
 </style>
 </head>
@@ -58,113 +66,152 @@ button{
 
 <h1>🏦 Tài chính gia đình</h1>
 
-<!-- BUDGET -->
+<!-- DASHBOARD -->
 <div class="card">
-<h3>🎯 Ngân sách theo danh mục (tháng)</h3>
-<input id="bCat" placeholder="Danh mục (Ăn uống…)">
-<input id="bVal" type="number" placeholder="Ngân sách">
-<button onclick="addBudget()">Lưu ngân sách</button>
-<div id="budgetList"></div>
+<h3>📊 Tổng quan</h3>
+<div id="dashboard"></div>
+</div>
+
+<!-- INCOME -->
+<div class="card">
+<h3>💼 Thu nhập gia đình / tháng</h3>
+<input id="income" type="number" placeholder="VD: 40000000">
+<button onclick="saveIncome()">Lưu</button>
 </div>
 
 <!-- EXPENSE -->
 <div class="card">
 <h3>➕ Chi tiêu</h3>
+<div class="row">
 <input id="amount" type="number" placeholder="Số tiền">
-<select id="category"></select>
+<select id="category">
+<option>Ăn uống</option><option>Đi chợ</option>
+<option>Nhà ở</option><option>Giáo dục</option>
+<option>Di chuyển</option><option>Du lịch</option>
+<option>Khác</option>
+</select>
+</div>
 <button onclick="addExpense()">Lưu</button>
 </div>
 
-<!-- INVEST -->
 <div class="card">
-<h3>📈 Theo dõi đầu tư</h3>
-<input id="invName" placeholder="Tên khoản đầu tư">
-<select id="invType">
-<option>An toàn</option>
-<option>Tăng trưởng</option>
-<option>Dài hạn</option>
-</select>
-<input id="invVal" type="number" placeholder="Giá trị hiện tại">
-<button onclick="addInvestment()">Thêm</button>
-<div id="invList"></div>
+<h3>📉 Biểu đồ chi tiêu</h3>
+<canvas id="expenseChart"></canvas>
 </div>
 
-<!-- STRATEGY -->
+<!-- GOALS -->
 <div class="card">
-<h3>🧠 Đánh giá phân bổ</h3>
-<div id="strategy"></div>
+<h3>🏠 Mục tiêu mua BĐS</h3>
+<input id="houseTarget" type="number" placeholder="Số tiền cần">
+<input id="houseMonths" type="number" placeholder="Số tháng (24–36)">
+<button onclick="calcHouse()">Tính</button>
+<div id="houseResult"></div>
+</div>
+
+<!-- SCENARIO -->
+<div class="card">
+<h3>🔮 Kịch bản thu nhập</h3>
+<select onchange="scenario(this.value)">
+<option value="1">Hiện tại</option>
+<option value="0.8">Giảm 20%</option>
+<option value="1.3">Tăng 30%</option>
+</select>
+<div id="scenarioResult"></div>
+</div>
+
+<!-- BACKUP -->
+<div class="card">
+<h3>👨‍👩‍👧 Dùng chung & Backup</h3>
+<button onclick="exportData()">Xuất dữ liệu</button>
+<input type="file" onchange="importData(this.files[0])">
+<p class="small">Dùng để chia sẻ vợ – chồng / đổi máy</p>
 </div>
 
 <script>
-let budgets=JSON.parse(localStorage.getItem("budgets")||"[]");
 let expenses=JSON.parse(localStorage.getItem("expenses")||"[]");
-let investments=JSON.parse(localStorage.getItem("investments")||"[]");
+let income=+localStorage.getItem("income")||0;
+let house=JSON.parse(localStorage.getItem("house")||"{}");
 
-function addBudget(){
- let c=bCat.value,v=+bVal.value;
- if(!c||!v)return;
- budgets.push({c,v});
- localStorage.setItem("budgets",JSON.stringify(budgets));
- bCat.value="";bVal.value="";
+function saveIncome(){
+ income=+document.getElementById("income").value;
+ localStorage.setItem("income",income);
  render();
 }
 
 function addExpense(){
  let a=+amount.value;
- let c=category.value;
  if(!a)return;
- expenses.push({a,c});
+ expenses.push({a,cat:category.value});
  localStorage.setItem("expenses",JSON.stringify(expenses));
  amount.value="";
  render();
 }
 
-function addInvestment(){
- let v=+invVal.value;
- if(!v)return;
- investments.push({name:invName.value,type:invType.value,value:v});
- localStorage.setItem("investments",JSON.stringify(investments));
- invName.value="";invVal.value="";
+function calcHouse(){
+ let t=+houseTarget.value;
+ let m=+houseMonths.value;
+ if(!t||!m)return;
+ house={t,m};
+ localStorage.setItem("house",JSON.stringify(house));
  render();
 }
 
+function scenario(rate){
+ let inc=income*rate;
+ let need=house.t/house.m||0;
+ let html=`<p>Thu nhập: <strong>${Math.round(inc).toLocaleString()}đ</strong></p>`;
+ html+= inc*0.3>=need
+ ? `<p class="good">✔ Vẫn đạt mục tiêu mua BĐS</p>`
+ : `<p class="bad">❌ Cần giảm chi tiêu / tăng tiết kiệm</p>`;
+ scenarioResult.innerHTML=html;
+}
+
+function exportData(){
+ let data={expenses,income,house};
+ let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="taichinh_giadinh.json";
+ a.click();
+}
+
+function importData(file){
+ let r=new FileReader();
+ r.onload=e=>{
+  let d=JSON.parse(e.target.result);
+  expenses=d.expenses||[];
+  income=d.income||0;
+  house=d.house||{};
+  localStorage.setItem("expenses",JSON.stringify(expenses));
+  localStorage.setItem("income",income);
+  localStorage.setItem("house",JSON.stringify(house));
+  render();
+ };
+ r.readAsText(file);
+}
+
 function render(){
- // categories
- category.innerHTML="";
- budgets.forEach(b=>{
-  let opt=document.createElement("option");
-  opt.text=b.c;category.add(opt);
- });
+ let totalExp=expenses.reduce((s,e)=>s+e.a,0);
+ let save=income-totalExp;
+ let dash=`
+ <div class="item"><span>Thu nhập</span><strong>${income.toLocaleString()}đ</strong></div>
+ <div class="item"><span>Chi tiêu</span><strong>${totalExp.toLocaleString()}đ</strong></div>
+ <div class="item"><span>Tiết kiệm</span><strong>${save.toLocaleString()}đ</strong></div>
+ `;
+ if(house.t){
+  let p=Math.min(save/ (house.t/house.m)*100,100);
+  dash+=`<p class="small">Tiến độ mua BĐS</p>
+  <div class="progress"><div style="width:${p}%"></div></div>`;
+ }
+ dashboard.innerHTML=dash;
 
- // budget view
- budgetList.innerHTML="";
- budgets.forEach(b=>{
-  let spent=expenses.filter(e=>e.c==b.c).reduce((s,e)=>s+e.a,0);
-  let p=Math.min(spent/b.v*100,100);
-  budgetList.innerHTML+=`
-   <div class="item">
-    <span>${b.c}</span>
-    <strong>${spent.toLocaleString()} / ${b.v.toLocaleString()}</strong>
-   </div>
-   <div class="progress"><div style="width:${p}%"></div></div>
-   ${spent>b.v?'<p class="warn">⚠️ Vượt ngân sách</p>':''}
-  `;
- });
-
- // investment strategy
  let sum={};
- investments.forEach(i=>sum[i.type]=(sum[i.type]||0)+i.value);
- let total=Object.values(sum).reduce((s,v)=>s+v,0);
- let html="";
- for(let k in sum){
-  html+=`<div class="item"><span>${k}</span><strong>${Math.round(sum[k]/total*100)}%</strong></div>`;
- }
- if((sum["An toàn"]||0)/total<0.45){
-  html+=`<p class="warn">⚠️ Nên tăng nhóm An toàn cho mục tiêu mua BĐS</p>`;
- }else{
-  html+=`<p class="good">✔ Phân bổ phù hợp mục tiêu 2–3 năm</p>`;
- }
- strategy.innerHTML=html;
+ expenses.forEach(e=>sum[e.cat]=(sum[e.cat]||0)+e.a);
+ if(window.chart)chart.destroy();
+ chart=new Chart(expenseChart,{
+  type:"doughnut",
+  data:{labels:Object.keys(sum),datasets:[{data:Object.values(sum)}]}
+ });
 }
 render();
 </script>
