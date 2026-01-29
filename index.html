@@ -10,7 +10,7 @@
 :root{
   --primary:#4CAF50;
   --bg:#f2f4f7;
-  --card:#ffffff;
+  --card:#fff;
   --text:#333;
 }
 body{
@@ -18,7 +18,6 @@ body{
   background:var(--bg);
   margin:0;
   padding:12px;
-  color:var(--text);
 }
 h1{text-align:center}
 .card{
@@ -41,9 +40,22 @@ button{
   border:none;
   font-weight:600;
 }
-.item{display:flex;justify-content:space-between;margin-top:6px}
+.item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:6px;
+}
+.small{font-size:13px;color:#666}
+.warn{color:#d35400;font-weight:600}
 .good{color:#27ae60;font-weight:600}
-.warn{color:#e67e22;font-weight:600}
+.actions button{
+  background:#eee;
+  color:#333;
+  padding:4px 8px;
+  border-radius:6px;
+  margin-left:4px;
+}
 </style>
 </head>
 
@@ -62,25 +74,7 @@ button{
 </select>
 </div>
 
-<!-- EXPENSE -->
-<div class="card">
-<h3>➕ Chi tiêu</h3>
-<input id="amount" type="number" placeholder="Số tiền">
-<select id="category">
-<option>Ăn uống</option><option>Đi chợ</option>
-<option>Nhà ở</option><option>Giáo dục</option>
-<option>Di chuyển</option><option>Du lịch</option>
-<option>Khác</option>
-</select>
-<button onclick="addExpense()">Lưu</button>
-</div>
-
-<div class="card">
-<h3>📊 Chi tiêu theo danh mục</h3>
-<canvas id="expenseChart"></canvas>
-</div>
-
-<!-- ASSETS -->
+<!-- ASSETS FIRST -->
 <div class="card">
 <h3>🏦 Tài sản</h3>
 <input id="assetName" placeholder="Tên tài sản">
@@ -89,60 +83,120 @@ button{
 <option>Tăng trưởng</option>
 <option>Rủi ro</option>
 </select>
-<input id="assetValue" type="number" placeholder="Giá trị">
-<button onclick="addAsset()">Thêm</button>
+<input id="assetValue" placeholder="Giá trị (VND)" oninput="formatNumber(this)">
+<button onclick="addAsset()">Thêm tài sản</button>
 <div id="assetList"></div>
 </div>
 
-<!-- GOALS -->
+<!-- INCOME -->
 <div class="card">
-<h3>🏠 Mục tiêu mua BĐS</h3>
-<input id="houseTarget" type="number" placeholder="Số tiền cần (VND)">
-<input id="houseMonths" type="number" placeholder="Số tháng (24–36)">
-<button onclick="calcHouse()">Tính</button>
-<div id="houseResult"></div>
+<h3>💼 Thu nhập tháng</h3>
+<input id="income" placeholder="Thu nhập (VND)" oninput="formatNumber(this)">
+</div>
+
+<!-- EXPENSE -->
+<div class="card">
+<h3>➕ Chi tiêu</h3>
+<input id="amount" placeholder="Số tiền (VND)" oninput="formatNumber(this)">
+<select id="category">
+<option>Ăn uống</option>
+<option>Đi chợ</option>
+<option>Nhà ở</option>
+<option>Giáo dục</option>
+<option>Di chuyển</option>
+<option>Du lịch</option>
+<option>Khác</option>
+</select>
+<button onclick="addExpense()">Lưu chi tiêu</button>
 </div>
 
 <div class="card">
-<h3>✈️ Quỹ du lịch</h3>
-<input id="travelBudget" type="number" placeholder="Ngân sách/năm">
-<button onclick="saveTravel()">Lưu</button>
-<div id="travelResult"></div>
+<h3>📊 Chi tiêu theo danh mục</h3>
+<canvas id="expenseChart"></canvas>
+<div id="expenseList"></div>
 </div>
 
 <!-- STRATEGY -->
 <div class="card">
-<h3>🧠 Đánh giá & chiến lược</h3>
+<h3>🧠 Đánh giá chiến lược</h3>
 <div id="strategy"></div>
 </div>
 
 <script>
 let expenses=JSON.parse(localStorage.getItem("expenses")||"[]");
 let assets=JSON.parse(localStorage.getItem("assets")||"[]");
-let theme=localStorage.getItem("theme")||"#4CAF50";
-document.documentElement.style.setProperty('--primary',theme);
+let income=+localStorage.getItem("income")||0;
+document.getElementById("income").value=formatDisplay(income);
 
-function setTheme(c){
- localStorage.setItem("theme",c);
- document.documentElement.style.setProperty('--primary',c);
+function formatNumber(el){
+ let v=el.value.replace(/\D/g,"");
+ el.value=formatDisplay(v);
+}
+function formatDisplay(n){
+ return n?Number(n).toLocaleString("vi-VN"):"";
+}
+function getNumber(v){
+ return +v.replace(/\D/g,"")||0;
 }
 
 function addExpense(){
- let a=+amount.value;
+ let a=getNumber(amount.value);
  if(!a)return;
  expenses.push({a,cat:category.value});
  localStorage.setItem("expenses",JSON.stringify(expenses));
  amount.value="";
- renderChart();
+ render();
 }
 
 function addAsset(){
- let v=+assetValue.value;
+ let v=getNumber(assetValue.value);
  if(!v)return;
  assets.push({name:assetName.value,type:assetType.value,value:v});
  localStorage.setItem("assets",JSON.stringify(assets));
  assetName.value="";assetValue.value="";
- renderAssets(); renderStrategy();
+ render();
+}
+
+function deleteItem(arr,i,key){
+ arr.splice(i,1);
+ localStorage.setItem(key,JSON.stringify(arr));
+ render();
+}
+
+function render(){
+ localStorage.setItem("income",getNumber(income.value));
+ renderAssets();
+ renderExpenses();
+ renderChart();
+ renderStrategy();
+}
+
+function renderAssets(){
+ assetList.innerHTML="";
+ assets.forEach((a,i)=>{
+  assetList.innerHTML+=`
+  <div class="item">
+   <span>${a.name} (${a.type})</span>
+   <strong>${a.value.toLocaleString()}đ</strong>
+   <div class="actions">
+    <button onclick="deleteItem(assets,${i},'assets')">❌</button>
+   </div>
+  </div>`;
+ });
+}
+
+function renderExpenses(){
+ expenseList.innerHTML="";
+ expenses.slice(-8).reverse().forEach((e,i)=>{
+  expenseList.innerHTML+=`
+  <div class="item">
+   <span>${e.cat}</span>
+   <strong>${e.a.toLocaleString()}đ</strong>
+   <div class="actions">
+    <button onclick="deleteItem(expenses,${expenses.length-1-i},'expenses')">❌</button>
+   </div>
+  </div>`;
+ });
 }
 
 function renderChart(){
@@ -156,44 +210,21 @@ function renderChart(){
  });
 }
 
-function renderAssets(){
- assetList.innerHTML="";
- assets.forEach(a=>{
-  assetList.innerHTML+=
-  `<div class="item"><span>${a.name} (${a.type})</span><strong>${a.value.toLocaleString()}đ</strong></div>`;
- });
-}
-
 function renderStrategy(){
- let total=assets.reduce((s,a)=>s+a.value,0);
- let safe=assets.filter(a=>a.type=="An toàn").reduce((s,a)=>s+a.value,0);
- let ratio=Math.round(safe/total*100||0);
- let html=`<div class="item"><span>Tổng tài sản</span><strong>${total.toLocaleString()}đ</strong></div>`;
- html+=`<div class="item"><span>An toàn</span><strong>${ratio}%</strong></div>`;
- html+= ratio<45
- ? `<p class="warn">⚠️ Nên tăng tài sản an toàn để mua BĐS</p>`
- : `<p class="good">✔ Phù hợp mục tiêu 2–3 năm</p>`;
+ let totalIncome=getNumber(income.value);
+ let totalExpense=expenses.reduce((s,e)=>s+e.a,0);
+ let saving=totalIncome-totalExpense;
+ let html=`
+ <div class="item"><span>Thu nhập</span><strong>${totalIncome.toLocaleString()}đ</strong></div>
+ <div class="item"><span>Chi tiêu</span><strong>${totalExpense.toLocaleString()}đ</strong></div>
+ <div class="item"><span>Tiết kiệm</span><strong>${saving.toLocaleString()}đ</strong></div>`;
+ if(saving<=0) html+=`<p class="warn">⚠️ Đang chi vượt thu, chưa phù hợp đầu tư</p>`;
+ else if(saving/totalIncome<0.2) html+=`<p class="warn">⚠️ Tỷ lệ tiết kiệm thấp cho mục tiêu mua BĐS</p>`;
+ else html+=`<p class="good">✔ Dòng tiền tốt cho mục tiêu 2–3 năm</p>`;
  strategy.innerHTML=html;
 }
 
-function calcHouse(){
- let t=+houseTarget.value;
- let m=+houseMonths.value;
- if(!t||!m)return;
- let per=Math.round(t/m);
- localStorage.setItem("house",{t,m});
- houseResult.innerHTML=
- `<p>Mỗi tháng cần: <strong>${per.toLocaleString()}đ</strong></p>`;
-}
-
-function saveTravel(){
- let t=+travelBudget.value;
- localStorage.setItem("travel",t);
- travelResult.innerHTML=
- `<p>Du lịch: <strong>${t.toLocaleString()}đ / năm</strong></p>`;
-}
-
-renderChart(); renderAssets(); renderStrategy();
+render();
 </script>
 
 </body>
